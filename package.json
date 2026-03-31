@@ -1,0 +1,27 @@
+{
+  "name": "finpal",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "server",
+    "apps/*"
+  ],
+  "scripts": {
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down",
+    "infra:logs": "docker compose logs -f",
+    "dev:server": "npm run dev -w server",
+    "dev:workers": "npm run dev:workers -w server",
+    "dev:mobile": "npm run start -w apps/mobile",
+    "db:migrate": "npm run db:migrate -w server",
+    "db:generate": "npm run db:generate -w server",
+    "db:seed": "npm run db:seed -w server",
+    "build:server": "npm run build -w server",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
