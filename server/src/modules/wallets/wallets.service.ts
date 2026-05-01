@@ -51,3 +51,30 @@ export async function getWalletById(userId: string, walletId: string) {
     currentBalance: balance,
   };
 }
+
+export async function updateWallet(
+  userId: string,
+  walletId: string,
+  data: { name?: string; type?: string },
+) {
+  const wallet = await prisma.wallet.findFirst({ where: { id: walletId, userId } });
+  if (!wallet) throw Object.assign(new Error('Wallet not found'), { statusCode: 404 });
+
+  const updated = await prisma.wallet.update({
+    where: { id: walletId },
+    data: {
+      ...(data.name !== undefined && { name: data.name }),
+      ...(data.type !== undefined && { type: data.type }),
+    },
+  });
+
+  const balance = await computeWalletBalance(walletId);
+  return { ...updated, startingBalance: Number(updated.startingBalance), currentBalance: balance };
+}
+
+export async function deleteWallet(userId: string, walletId: string): Promise<void> {
+  const wallet = await prisma.wallet.findFirst({ where: { id: walletId, userId } });
+  if (!wallet) throw Object.assign(new Error('Wallet not found'), { statusCode: 404 });
+
+  await prisma.wallet.delete({ where: { id: walletId } });
+}

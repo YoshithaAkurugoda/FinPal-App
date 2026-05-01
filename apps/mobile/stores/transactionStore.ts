@@ -6,7 +6,6 @@ export interface Transaction {
   walletId: string;
   type: 'debit' | 'credit';
   amount: number;
-  currency: string;
   merchant: string;
   category: string;
   date: string;
@@ -36,7 +35,6 @@ function mapTransaction(tx: RawTx): Transaction {
     walletId: tx.walletId,
     type: tx.type as 'debit' | 'credit',
     amount: Number(tx.amount),
-    currency: 'LKR',
     merchant: tx.merchant ?? '',
     category: tx.category,
     date: tx.transactionDate,
@@ -132,49 +130,38 @@ export const useTransactionStore = create<TransactionState>()((set, get) => ({
   },
 
   approveTransaction: async (id, edits) => {
-    try {
-      await apiPatch(`/transactions/${id}/approve`, {
-        merchant: edits?.merchant,
-        category: edits?.category,
-        amount: edits?.amount,
-      });
-      set((state) => ({
-        pending: state.pending.filter((t) => t.id !== id),
-        transactions: state.transactions.map((t) =>
-          t.id === id ? { ...t, ...edits, status: 'approved' as const } : t,
-        ),
-      }));
-    } catch {
-      // UI can retry
-    }
+    const body: Record<string, unknown> = {};
+    if (edits?.merchant !== undefined) body.merchant = edits.merchant;
+    if (edits?.category !== undefined) body.category = edits.category;
+    if (edits?.amount !== undefined) body.amount = edits.amount;
+
+    await apiPatch(`/transactions/${id}/approve`, body);
+    set((state) => ({
+      pending: state.pending.filter((t) => t.id !== id),
+      transactions: state.transactions.map((t) =>
+        t.id === id ? { ...t, ...edits, status: 'approved' as const } : t,
+      ),
+    }));
   },
 
   rejectTransaction: async (id) => {
-    try {
-      await apiPatch(`/transactions/${id}/reject`);
-      set((state) => ({
-        pending: state.pending.filter((t) => t.id !== id),
-        transactions: state.transactions.map((t) =>
-          t.id === id ? { ...t, status: 'rejected' as const } : t,
-        ),
-      }));
-    } catch {
-      // ignore
-    }
+    await apiPatch(`/transactions/${id}/reject`);
+    set((state) => ({
+      pending: state.pending.filter((t) => t.id !== id),
+      transactions: state.transactions.map((t) =>
+        t.id === id ? { ...t, status: 'rejected' as const } : t,
+      ),
+    }));
   },
 
   batchApprove: async (ids) => {
-    try {
-      await apiPatch('/transactions/batch-approve', { transactionIds: ids });
-      set((state) => ({
-        pending: state.pending.filter((t) => !ids.includes(t.id)),
-        transactions: state.transactions.map((t) =>
-          ids.includes(t.id) ? { ...t, status: 'approved' as const } : t,
-        ),
-      }));
-    } catch {
-      // ignore
-    }
+    await apiPatch('/transactions/batch-approve', { transactionIds: ids });
+    set((state) => ({
+      pending: state.pending.filter((t) => !ids.includes(t.id)),
+      transactions: state.transactions.map((t) =>
+        ids.includes(t.id) ? { ...t, status: 'approved' as const } : t,
+      ),
+    }));
   },
 
   addManual: async (data) => {

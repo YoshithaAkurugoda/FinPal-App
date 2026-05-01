@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/constants/theme';
 import { useTransactionStore } from '@/stores/transactionStore';
 import { useWalletStore } from '@/stores/walletStore';
+import { useCurrency } from '@/lib/format';
 import Input from '@/components/Input';
 import Button from '@/components/Button';
 
@@ -35,6 +36,7 @@ export default function NewTransactionScreen() {
   const router = useRouter();
   const addManual = useTransactionStore((s) => s.addManual);
   const { wallets, fetchWallets } = useWalletStore();
+  const currency = useCurrency();
 
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<'debit' | 'credit'>('debit');
@@ -99,7 +101,7 @@ export default function NewTransactionScreen() {
 
           {/* Amount */}
           <View style={styles.amountContainer}>
-            <Text style={styles.currency}>LKR</Text>
+            <Text style={styles.currency}>{currency}</Text>
             <Input
               value={amount}
               onChangeText={setAmount}

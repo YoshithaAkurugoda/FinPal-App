@@ -22,7 +22,7 @@ interface ButtonProps {
 }
 
 const variantStyles: Record<Variant, { bg: string; text: string; border?: string }> = {
-  primary: { bg: theme.colors.primary, text: '#FFFFFF' },
+  primary: { bg: theme.colors.primary, text: '#000000' },
   secondary: { bg: theme.colors.surface, text: theme.colors.text, border: theme.colors.surfaceLight },
   danger: { bg: theme.colors.danger, text: '#FFFFFF' },
   ghost: { bg: 'transparent', text: theme.colors.primary },
@@ -44,7 +44,7 @@ export default function Button({
     <TouchableOpacity
       onPress={onPress}
       disabled={isDisabled}
-      activeOpacity={0.7}
+      activeOpacity={0.8}
       style={[
         styles.base,
         {
@@ -68,18 +68,19 @@ export default function Button({
 
 const styles = StyleSheet.create({
   base: {
-    paddingVertical: 14,
+    paddingVertical: 15,
     paddingHorizontal: theme.spacing.lg,
-    borderRadius: theme.borderRadius.md,
+    borderRadius: theme.borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: 52,
   } as ViewStyle,
   fullWidth: {
     width: '100%',
   } as ViewStyle,
   text: {
     fontSize: theme.fontSize.md,
-    fontWeight: '600',
+    fontWeight: '700',
+    letterSpacing: 0.3,
   } as TextStyle,
 });

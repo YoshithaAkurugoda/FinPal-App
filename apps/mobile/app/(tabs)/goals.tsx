@@ -15,6 +15,7 @@ import { format } from 'date-fns';
 import { theme } from '@/constants/theme';
 import { useGoalStore, GoalWithProjection } from '@/stores/goalStore';
 import { useWalletStore } from '@/stores/walletStore';
+import { useCurrency, formatAmount } from '@/lib/format';
 import Card from '@/components/Card';
 import ProgressBar from '@/components/ProgressBar';
 import Button from '@/components/Button';
@@ -24,6 +25,7 @@ export default function GoalsScreen() {
   const router = useRouter();
   const { goals, isLoading, fetchGoals, contribute } = useGoalStore();
   const { wallets, fetchWallets } = useWalletStore();
+  const currency = useCurrency();
 
   const [showContribute, setShowContribute] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<GoalWithProjection | null>(null);
@@ -61,8 +63,8 @@ export default function GoalsScreen() {
 
   const renderGoal = ({ item }: { item: GoalWithProjection }) => {
     const pct = Math.round(item.progress * 100);
-    const current = item.currentAmount.toLocaleString('en-LK');
-    const target = item.targetAmount.toLocaleString('en-LK');
+    const current = formatAmount(item.currentAmount, currency);
+    const target = formatAmount(item.targetAmount, currency);
 
     return (
       <Card
@@ -102,7 +104,7 @@ export default function GoalsScreen() {
         <Text style={styles.title}>Goals</Text>
         <TouchableOpacity
           style={styles.addBtn}
-          onPress={() => router.push('/goals/[id]' as any)}
+          onPress={() => router.push('/goals/new')}
         >
           <Text style={styles.addBtnText}>+ New</Text>
         </TouchableOpacity>

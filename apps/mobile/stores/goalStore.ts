@@ -6,7 +6,6 @@ export interface GoalWithProjection {
   name: string;
   targetAmount: number;
   currentAmount: number;
-  currency: string;
   deadline?: string;
   progress: number;
   projectedDate?: string | null;
@@ -21,6 +20,7 @@ interface RawGoal {
   targetDate?: string | null;
   progress?: number;
   projectedDate?: string | Date | null;
+  projectedCompletionDate?: string | Date | null;
   weeklyTarget?: number;
   status: string;
   createdAt: string;
@@ -30,12 +30,14 @@ function mapGoal(g: RawGoal): GoalWithProjection {
   const target = Number(g.targetAmount);
   const current = Number(g.currentAmount);
   const progress = g.progress ?? (target > 0 ? current / target : 0);
+  // Prefer AI-computed projectedCompletionDate over the targetDate-derived projectedDate
+  const rawProjected = g.projectedCompletionDate ?? g.projectedDate;
   let projected: string | undefined;
-  if (g.projectedDate) {
+  if (rawProjected) {
     projected =
-      typeof g.projectedDate === 'string'
-        ? g.projectedDate
-        : new Date(g.projectedDate).toISOString();
+      typeof rawProjected === 'string'
+        ? rawProjected
+        : new Date(rawProjected).toISOString();
   }
   let deadline: string | undefined;
   if (g.targetDate) {
@@ -47,7 +49,6 @@ function mapGoal(g: RawGoal): GoalWithProjection {
     name: g.name,
     targetAmount: target,
     currentAmount: current,
-    currency: 'LKR',
     deadline,
     progress,
     projectedDate: projected,

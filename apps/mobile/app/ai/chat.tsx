@@ -4,10 +4,11 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TextInput,
+  ScrollView,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,22 +16,92 @@ import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { theme } from '@/constants/theme';
 import { useAiStore, ChatMessage } from '@/stores/aiStore';
+import { useAuthStore } from '@/stores/authStore';
+
+const THINKING_PHRASES = [
+  'Crunching the numbers...',
+  'Consulting my spreadsheets...',
+  'Asking the money gods...',
+  'Calculating your life choices...',
+  'Pretending to be a CFO...',
+  'Doing math (yikes)...',
+  'Checking under the couch cushions...',
+  'Bribing the data...',
+];
 
 function TypingIndicator() {
+  const dot1 = useRef(new Animated.Value(0)).current;
+  const dot2 = useRef(new Animated.Value(0)).current;
+  const dot3 = useRef(new Animated.Value(0)).current;
+  const [phrase] = useState(
+    () => THINKING_PHRASES[Math.floor(Math.random() * THINKING_PHRASES.length)],
+  );
+
+  useEffect(() => {
+    const bounce = (dot: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(dot, { toValue: -6, duration: 300, useNativeDriver: true }),
+          Animated.timing(dot, { toValue: 0, duration: 300, useNativeDriver: true }),
+          Animated.delay(600),
+        ]),
+      );
+
+    const a1 = bounce(dot1, 0);
+    const a2 = bounce(dot2, 150);
+    const a3 = bounce(dot3, 300);
+    a1.start(); a2.start(); a3.start();
+    return () => { a1.stop(); a2.stop(); a3.stop(); };
+  }, []);
+
   return (
-    <View style={styles.typingRow}>
-      <View style={styles.typingDot} />
-      <View style={[styles.typingDot, { opacity: 0.6 }]} />
-      <View style={[styles.typingDot, { opacity: 0.3 }]} />
+    <View style={styles.typingWrapper}>
+      <View style={styles.typingRow}>
+        {[dot1, dot2, dot3].map((dot, i) => (
+          <Animated.View
+            key={i}
+            style={[styles.typingDot, { transform: [{ translateY: dot }] }]}
+          />
+        ))}
+      </View>
+      <Text style={styles.typingPhrase}>{phrase}</Text>
     </View>
   );
 }
 
+type SuggestedPrompt = { label: string; prompt: string; llm?: boolean };
+
+const SUGGESTED_PROMPTS: SuggestedPrompt[] = [
+  { label: 'My balance', prompt: 'How much money do I have across my wallets?' },
+  { label: 'Top spending', prompt: 'Where did I spend the most in the last 30 days?' },
+  { label: 'Budget status', prompt: 'How am I doing on my budgets?' },
+  { label: 'Goal progress', prompt: 'How is my progress on my savings goals?' },
+  { label: 'Any tips?', prompt: 'Give me one short, actionable tip based on my finances.', llm: true },
+  { label: 'What to watch', prompt: 'Is there anything concerning in my spending I should watch?', llm: true },
+];
+
+const LLM_COOLDOWN_MS = 30_000;
+
 export default function AiChatScreen() {
   const router = useRouter();
-  const { chatHistory, isTyping, sendMessage, clearChat } = useAiStore();
-  const [input, setInput] = useState('');
+  const { chatHistory, isTyping, sendMessage, clearChat, loadChatHistory } = useAiStore();
+  const user = useAuthStore((s) => s.user);
   const flatListRef = useRef<FlatList>(null);
+  const [llmCooldownUntil, setLlmCooldownUntil] = useState(0);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    if (user?.id) {
+      loadChatHistory(user.id);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (llmCooldownUntil <= now) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [llmCooldownUntil, now]);
 
   useEffect(() => {
     if (chatHistory.length > 0) {
@@ -40,11 +111,20 @@ export default function AiChatScreen() {
     }
   }, [chatHistory.length, isTyping]);
 
-  const handleSend = () => {
-    const text = input.trim();
-    if (!text) return;
-    setInput('');
-    sendMessage(text);
+  const cooldownRemaining = Math.max(0, Math.ceil((llmCooldownUntil - now) / 1000));
+
+  const handleBubble = (item: SuggestedPrompt) => {
+    if (isTyping) return;
+    if (item.llm && cooldownRemaining > 0) return;
+    if (item.llm) {
+      setLlmCooldownUntil(Date.now() + LLM_COOLDOWN_MS);
+      setNow(Date.now());
+    }
+    sendMessage(item.prompt, user?.id);
+  };
+
+  const handleClear = () => {
+    clearChat(user?.id);
   };
 
   const renderMessage = ({ item }: { item: ChatMessage }) => {
@@ -73,7 +153,7 @@ export default function AiChatScreen() {
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
         <Text style={styles.title}>AI Chat</Text>
-        <TouchableOpacity onPress={clearChat}>
+        <TouchableOpacity onPress={handleClear}>
           <Ionicons name="trash-outline" size={20} color={theme.colors.textSecondary} />
         </TouchableOpacity>
       </View>
@@ -105,28 +185,32 @@ export default function AiChatScreen() {
           ListFooterComponent={isTyping ? <TypingIndicator /> : null}
         />
 
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.textInput}
-            value={input}
-            onChangeText={setInput}
-            placeholder="Type a message..."
-            placeholderTextColor={theme.colors.textSecondary}
-            multiline
-            maxLength={1000}
-            returnKeyType="send"
-            onSubmitEditing={handleSend}
-          />
-          <TouchableOpacity
-            style={[
-              styles.sendBtn,
-              !input.trim() && styles.sendBtnDisabled,
-            ]}
-            onPress={handleSend}
-            disabled={!input.trim()}
+        <View style={styles.suggestionsWrap}>
+          <Text style={styles.suggestionsHint}>
+            {cooldownRemaining > 0
+              ? `AI cooldown — ${cooldownRemaining}s remaining`
+              : 'Tap a question to ask FinPal'}
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.suggestionsRow}
           >
-            <Ionicons name="send" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
+            {SUGGESTED_PROMPTS.map((item) => {
+              const disabled = isTyping || (item.llm && cooldownRemaining > 0);
+              return (
+                <TouchableOpacity
+                  key={item.label}
+                  style={[styles.bubble, disabled && styles.bubbleDisabled]}
+                  onPress={() => handleBubble(item)}
+                  disabled={disabled}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.bubbleText}>{item.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -187,21 +271,35 @@ const styles = StyleSheet.create({
     marginTop: 4,
     alignSelf: 'flex-end',
   },
+  typingWrapper: {
+    alignSelf: 'flex-start',
+    marginBottom: theme.spacing.sm,
+    gap: 6,
+  },
   typingRow: {
     flexDirection: 'row',
-    gap: 4,
+    alignItems: 'flex-end',
+    gap: 5,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 14,
     backgroundColor: theme.colors.surface,
-    alignSelf: 'flex-start',
     borderRadius: theme.borderRadius.lg,
-    marginBottom: theme.spacing.sm,
+    borderBottomLeftRadius: 4,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: theme.colors.surfaceLight,
   },
   typingDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: theme.colors.textSecondary,
+    backgroundColor: theme.colors.primary,
+  },
+  typingPhrase: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.fontSize.xs,
+    paddingHorizontal: 4,
+    fontStyle: 'italic',
   },
   emptyContainer: {
     flex: 1,
@@ -214,36 +312,38 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.sm,
     marginTop: theme.spacing.md,
   },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    padding: theme.spacing.md,
-    gap: theme.spacing.sm,
+  suggestionsWrap: {
+    paddingTop: theme.spacing.sm,
+    paddingBottom: theme.spacing.md,
     borderTopWidth: 1,
     borderTopColor: theme.colors.surfaceLight,
     backgroundColor: theme.colors.background,
   },
-  textInput: {
-    flex: 1,
-    backgroundColor: theme.colors.surface,
-    color: theme.colors.text,
-    fontSize: theme.fontSize.sm,
+  suggestionsHint: {
+    color: theme.colors.textSecondary,
+    fontSize: 11,
+    paddingHorizontal: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
+  },
+  suggestionsRow: {
+    paddingHorizontal: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  bubble: {
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: theme.borderRadius.xl,
-    maxHeight: 100,
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
     borderColor: theme.colors.surfaceLight,
+    marginRight: theme.spacing.sm,
   },
-  sendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sendBtnDisabled: {
+  bubbleDisabled: {
     opacity: 0.4,
+  },
+  bubbleText: {
+    color: theme.colors.text,
+    fontSize: theme.fontSize.sm,
+    fontWeight: '500',
   },
 });

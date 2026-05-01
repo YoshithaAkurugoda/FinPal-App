@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { apiGet, apiPost, apiPut } from '@/lib/api';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 
 export interface BudgetWithStatus {
   id: string;
@@ -7,7 +7,6 @@ export interface BudgetWithStatus {
   limit: number;
   spent: number;
   remaining: number;
-  currency: string;
   period: 'monthly' | 'weekly';
   progress: number;
   createdAt: string;
@@ -33,7 +32,6 @@ function mapBudget(b: RawBudget): BudgetWithStatus {
     limit,
     spent,
     remaining: Number(b.remaining ?? Math.max(0, limit - spent)),
-    currency: 'LKR',
     period: b.period as 'monthly' | 'weekly',
     progress: limit > 0 ? spent / limit : 0,
     createdAt:
@@ -56,6 +54,7 @@ interface BudgetState {
   fetchBudgets: () => Promise<void>;
   createBudget: (data: CreateBudgetData) => Promise<void>;
   updateBudget: (id: string, data: Partial<CreateBudgetData>) => Promise<void>;
+  deleteBudget: (id: string) => Promise<void>;
 }
 
 export const useBudgetStore = create<BudgetState>()((set) => ({
@@ -99,6 +98,13 @@ export const useBudgetStore = create<BudgetState>()((set) => ({
     const budget = mapBudget(updated);
     set((state) => ({
       budgets: state.budgets.map((b) => (b.id === id ? budget : b)),
+    }));
+  },
+
+  deleteBudget: async (id) => {
+    await apiDelete(`/budgets/${id}`);
+    set((state) => ({
+      budgets: state.budgets.filter((b) => b.id !== id),
     }));
   },
 }));

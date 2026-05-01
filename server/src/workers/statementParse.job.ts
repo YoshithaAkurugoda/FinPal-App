@@ -1,10 +1,10 @@
 import { z } from 'zod';
 
-import { anthropic } from '../lib/anthropic.js';
+import { generateText } from '../lib/ai-provider.js';
 import { prisma } from '../lib/prisma.js';
 import { sendNotification } from '../services/notification.service.js';
 
-const CLAUDE_MAX_INPUT_CHARS = 120_000;
+const CLAUDE_MAX_INPUT_CHARS = 50_000;
 
 const ParsedStatement = z.object({
   transactions: z.array(
@@ -49,19 +49,15 @@ export async function processStatementParseJob(data: {
       : log.rawPayload;
 
   try {
-    const msg = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 8192,
+    const raw = await generateText({
       system: `You extract bank transactions from statement text (Sri Lanka / LKR context). Return ONLY valid JSON, no markdown.
 Schema: { "transactions": [ { "amount": number, "type": "debit"|"credit", "merchant": string, "category": string, "date": "YYYY-MM-DD"|null, "confidence": number } ] }
 Include every card/transfer/fee line that is a real transaction. Skip opening balances and summary-only rows.
 Categories: Groceries | Dining | Transport | Health | Shopping | Entertainment | Utilities | Savings | Transfer | Other
 confidence: 0.0-1.0 per row. If unsure of a row, omit it or use low confidence.`,
       messages: [{ role: 'user', content: text }],
-    });
-
-    const block = msg.content.find((b) => b.type === 'text');
-    const raw = block?.type === 'text' ? block.text : '{"transactions":[]}';
+      maxTokens: 8192,
+    }) || '{"transactions":[]}';
     const parsed = ParsedStatement.safeParse(parseJsonFromModel(raw));
     if (!parsed.success) {
       throw new Error('AI returned invalid statement JSON');
@@ -113,6 +109,7 @@ confidence: 0.0-1.0 per row. If unsure of a row, omit it or use low confidence.`
     }
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Parse failed';
+    console.error('[Statement Parse Worker] Failed:', message);
     await prisma.ingestionLog.update({
       where: { id: ingestionLogId },
       data: { status: 'failed', errorMessage: message },

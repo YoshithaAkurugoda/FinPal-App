@@ -13,7 +13,7 @@ export default function Card({ children, style, onPress }: CardProps) {
   return (
     <Wrapper
       style={[styles.card, style]}
-      {...(onPress ? { onPress, activeOpacity: 0.7 } : {})}
+      {...(onPress ? { onPress, activeOpacity: 0.75 } : {})}
     >
       {children}
     </Wrapper>
@@ -26,5 +26,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.surfaceLight,
   },
 });

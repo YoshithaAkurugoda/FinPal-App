@@ -102,3 +102,29 @@ export const updateProfileSchema = z.object({
 export const updateFcmTokenSchema = z.object({
   fcmToken: z.string().min(1),
 });
+
+export const updateGoalSchema = z.object({
+  name: z.string().min(1).optional(),
+  targetAmount: z.number().positive().optional(),
+  targetDate: z.string().min(1).nullable().optional(),
+});
+
+export const updateWalletSchema = z.object({
+  name: z.string().min(1).optional(),
+  type: z.enum(['bank', 'cash', 'ewallet']).optional(),
+});
+
+export const monthReportSchema = z.object({
+  month: z.coerce.number().int().min(1).max(12),
+  year: z.coerce.number().int().min(2000),
+});
+
+export const merchantReportSchema = z.object({
+  from: z.string().min(1),
+  to: z.string().min(1),
+  category: z.string().optional(),
+});
+
+export const trendReportSchema = z.object({
+  months: z.coerce.number().int().min(1).max(24).default(6),
+});

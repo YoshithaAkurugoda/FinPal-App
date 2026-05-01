@@ -1,5 +1,6 @@
-import React from 'react';
-import { View, Text, TextInput, StyleSheet, KeyboardTypeOptions } from 'react-native';
+import React, { ReactNode, useState } from 'react';
+import { View, Text, TextInput, StyleSheet, KeyboardTypeOptions, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/constants/theme';
 
 interface InputProps {
@@ -13,6 +14,8 @@ interface InputProps {
   multiline?: boolean;
   numberOfLines?: number;
   editable?: boolean;
+  leftIcon?: ReactNode;
+  rightElement?: ReactNode;
 }
 
 export default function Input({
@@ -26,27 +29,49 @@ export default function Input({
   multiline,
   numberOfLines,
   editable = true,
+  leftIcon,
+  rightElement,
 }: InputProps) {
+  const [showPassword, setShowPassword] = useState(false);
+  const isPassword = secureTextEntry !== undefined;
+  const hideText = isPassword && !showPassword;
+
   return (
     <View style={styles.container}>
       {label && <Text style={styles.label}>{label}</Text>}
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={theme.colors.textSecondary}
-        secureTextEntry={secureTextEntry}
-        keyboardType={keyboardType}
-        multiline={multiline}
-        numberOfLines={numberOfLines}
-        editable={editable}
-        style={[
-          styles.input,
-          multiline && styles.multiline,
-          error && styles.inputError,
-          !editable && styles.disabled,
-        ]}
-      />
+      <View style={[styles.inputWrapper, error ? styles.wrapperError : null]}>
+        {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={theme.colors.textSecondary}
+          secureTextEntry={hideText}
+          keyboardType={keyboardType}
+          multiline={multiline}
+          numberOfLines={numberOfLines}
+          editable={editable}
+          style={[
+            styles.input,
+            leftIcon ? styles.inputWithLeft : null,
+            multiline ? styles.multiline : null,
+            !editable ? styles.disabled : null,
+          ]}
+        />
+        {isPassword && (
+          <TouchableOpacity
+            style={styles.rightIcon}
+            onPress={() => setShowPassword((v) => !v)}
+          >
+            <Ionicons
+              name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+              size={18}
+              color={theme.colors.textSecondary}
+            />
+          </TouchableOpacity>
+        )}
+        {rightElement && <View style={styles.rightIcon}>{rightElement}</View>}
+      </View>
       {error && <Text style={styles.error}>{error}</Text>}
     </View>
   );
@@ -58,27 +83,45 @@ const styles = StyleSheet.create({
   },
   label: {
     color: theme.colors.textSecondary,
-    fontSize: theme.fontSize.sm,
-    marginBottom: theme.spacing.xs,
-    fontWeight: '500',
+    fontSize: theme.fontSize.xs,
+    marginBottom: 6,
+    fontWeight: '600',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
-  input: {
-    backgroundColor: theme.colors.surface,
-    color: theme.colors.text,
-    fontSize: theme.fontSize.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 14,
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surfaceMid,
     borderRadius: theme.borderRadius.md,
     borderWidth: 1,
     borderColor: theme.colors.surfaceLight,
+  },
+  wrapperError: {
+    borderColor: theme.colors.danger,
+  },
+  leftIcon: {
+    paddingLeft: theme.spacing.md,
+    paddingRight: 8,
+  },
+  rightIcon: {
+    paddingRight: theme.spacing.md,
+    paddingLeft: 8,
+  },
+  input: {
+    flex: 1,
+    color: theme.colors.text,
+    fontSize: theme.fontSize.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 15,
+  },
+  inputWithLeft: {
+    paddingLeft: 0,
   },
   multiline: {
     minHeight: 100,
     textAlignVertical: 'top',
     paddingTop: 14,
-  },
-  inputError: {
-    borderColor: theme.colors.danger,
   },
   disabled: {
     opacity: 0.6,

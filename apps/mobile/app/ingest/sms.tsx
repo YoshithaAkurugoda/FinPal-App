@@ -19,12 +19,26 @@ import api from '@/lib/api';
 import Input from '@/components/Input';
 import Button from '@/components/Button';
 
+const CATEGORIES = [
+  'Groceries',
+  'Dining',
+  'Transport',
+  'Health',
+  'Shopping',
+  'Entertainment',
+  'Utilities',
+  'Savings',
+  'Transfer',
+  'Other',
+];
+
 export default function PasteSmsScreen() {
   const router = useRouter();
   const { wallets, fetchWallets } = useWalletStore();
 
   const [rawText, setRawText] = useState('');
   const [walletId, setWalletId] = useState('');
+  const [hintCategory, setHintCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -62,12 +76,14 @@ export default function PasteSmsScreen() {
       await api.post('/ingestion/sms', {
         rawText: rawText.trim(),
         walletId,
+        ...(hintCategory ? { hintCategory } : {}),
       });
       setSuccess(true);
     } catch (err: any) {
+      const serverError = err?.response?.data?.error;
       Alert.alert(
-        'Parse Failed',
-        err.response?.data?.message ?? 'Could not parse the SMS. Please try again.',
+        'Submission Failed',
+        serverError ?? 'Could not submit the SMS. Please try again.',
       );
     } finally {
       setLoading(false);
@@ -78,14 +94,10 @@ export default function PasteSmsScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.successContainer}>
-          <Ionicons
-            name="checkmark-circle"
-            size={80}
-            color={theme.colors.success}
-          />
-          <Text style={styles.successTitle}>Transaction Parsed!</Text>
+          <Ionicons name="checkmark-circle" size={80} color={theme.colors.success} />
+          <Text style={styles.successTitle}>SMS Submitted!</Text>
           <Text style={styles.successSubtitle}>
-            Check your pending approvals to review and confirm.
+            AI is parsing your transaction. Check pending approvals in a moment to review and confirm.
           </Text>
           <Button
             title="View Pending"
@@ -103,6 +115,7 @@ export default function PasteSmsScreen() {
             onPress={() => {
               setSuccess(false);
               setRawText('');
+              setHintCategory(null);
             }}
             fullWidth
             style={{ marginTop: theme.spacing.sm }}
@@ -153,22 +166,36 @@ export default function PasteSmsScreen() {
             style={styles.pasteBtn}
           />
 
-          <Text style={styles.walletLabel}>Select Wallet</Text>
+          {/* Category hint */}
+          <Text style={styles.sectionLabel}>Category (optional)</Text>
+          <Text style={styles.sectionHint}>
+            Select a category or leave blank — AI will detect it automatically.
+          </Text>
+          <View style={styles.chipGrid}>
+            {CATEGORIES.map((cat) => (
+              <TouchableOpacity
+                key={cat}
+                style={[styles.chip, hintCategory === cat && styles.chipActive]}
+                onPress={() => setHintCategory(hintCategory === cat ? null : cat)}
+              >
+                <Text style={[styles.chipText, hintCategory === cat && styles.chipTextActive]}>
+                  {cat}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Wallet selector */}
+          <Text style={styles.sectionLabel}>Select Wallet</Text>
           <View style={styles.walletRow}>
             {wallets.map((w) => (
               <TouchableOpacity
                 key={w.id}
-                style={[
-                  styles.walletChip,
-                  walletId === w.id && styles.walletActive,
-                ]}
+                style={[styles.walletChip, walletId === w.id && styles.walletActive]}
                 onPress={() => setWalletId(w.id)}
               >
                 <Text
-                  style={[
-                    styles.walletText,
-                    walletId === w.id && styles.walletTextActive,
-                  ]}
+                  style={[styles.walletText, walletId === w.id && styles.walletTextActive]}
                   numberOfLines={1}
                 >
                   {w.name}
@@ -221,11 +248,43 @@ const styles = StyleSheet.create({
   pasteBtn: {
     marginBottom: theme.spacing.lg,
   },
-  walletLabel: {
+  sectionLabel: {
     color: theme.colors.textSecondary,
     fontSize: theme.fontSize.sm,
-    marginBottom: theme.spacing.sm,
+    marginBottom: 4,
     fontWeight: '500',
+  },
+  sectionHint: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.fontSize.xs,
+    marginBottom: theme.spacing.sm,
+    opacity: 0.7,
+  },
+  chipGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.lg,
+  },
+  chip: {
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: theme.borderRadius.full,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.surfaceLight,
+  },
+  chipActive: {
+    backgroundColor: theme.colors.primary + '20',
+    borderColor: theme.colors.primary,
+  },
+  chipText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.fontSize.sm,
+  },
+  chipTextActive: {
+    color: theme.colors.primary,
+    fontWeight: '600',
   },
   walletRow: {
     flexDirection: 'row',

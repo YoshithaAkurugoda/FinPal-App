@@ -8,7 +8,7 @@ interface RetryableRequest extends InternalAxiosRequestConfig {
 
 const api = axios.create({
   baseURL: API_URL,
-  timeout: 15000,
+  timeout: 60000,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -93,5 +93,10 @@ export async function apiPut<T>(url: string, body?: unknown) {
 
 export async function apiPatch<T>(url: string, body?: unknown) {
   const { data } = await api.patch<T>(url, body);
+  return data;
+}
+
+export async function apiDelete<T = void>(url: string) {
+  const { data } = await api.delete<T>(url);
   return data;
 }

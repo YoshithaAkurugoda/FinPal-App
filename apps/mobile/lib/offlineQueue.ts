@@ -2,6 +2,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import api from './api';
 
+// Disable native reachability API to prevent "signal is aborted without reason"
+// crash on Hermes. No HTTP probe needed — isConnected is enough for the queue.
+NetInfo.configure({ useNativeReachability: false });
+
 const QUEUE_KEY = 'offline_queue';
 
 interface QueuedAction {

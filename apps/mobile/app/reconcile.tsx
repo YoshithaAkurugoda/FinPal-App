@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/constants/theme';
 import { useWalletStore } from '@/stores/walletStore';
 import { apiPost } from '@/lib/api';
+import { useCurrency, formatAmount } from '@/lib/format';
 import Input from '@/components/Input';
 import Button from '@/components/Button';
 import Card from '@/components/Card';
@@ -20,6 +21,7 @@ import Card from '@/components/Card';
 export default function ReconcileScreen() {
   const router = useRouter();
   const { wallets, fetchWallets } = useWalletStore();
+  const currency = useCurrency();
 
   const [walletId, setWalletId] = useState('');
   const [statedBalance, setStatedBalance] = useState('');
@@ -135,17 +137,13 @@ export default function ReconcileScreen() {
             <View style={styles.resultRow}>
               <Text style={styles.resultLabel}>Computed (FinPal)</Text>
               <Text style={styles.resultValue}>
-                {result.computed.toLocaleString('en-LK', {
-                  minimumFractionDigits: 2,
-                })}
+                {formatAmount(result.computed, currency)}
               </Text>
             </View>
             <View style={styles.resultRow}>
               <Text style={styles.resultLabel}>Stated (Bank)</Text>
               <Text style={styles.resultValue}>
-                {result.stated.toLocaleString('en-LK', {
-                  minimumFractionDigits: 2,
-                })}
+                {formatAmount(result.stated, currency)}
               </Text>
             </View>
             <View style={styles.divider} />
@@ -162,10 +160,7 @@ export default function ReconcileScreen() {
                   },
                 ]}
               >
-                {result.discrepancy >= 0 ? '+' : ''}
-                {result.discrepancy.toLocaleString('en-LK', {
-                  minimumFractionDigits: 2,
-                })}
+                {result.discrepancy >= 0 ? '+' : ''}{formatAmount(Math.abs(result.discrepancy), currency)}
               </Text>
             </View>
 

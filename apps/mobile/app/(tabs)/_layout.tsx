@@ -1,110 +1,114 @@
-import { Tabs, useRouter } from 'expo-router';
-import { TouchableOpacity, View, StyleSheet } from 'react-native';
+import { Tabs } from 'expo-router';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { theme } from '@/constants/theme';
 
-function AddButton() {
-  const router = useRouter();
+const TAB_CONFIG = [
+  { name: 'home',         label: 'HOME',        icon: 'home',         iconOutline: 'home-outline' },
+  { name: 'transactions', label: 'ACTIVITY',    icon: 'receipt',      iconOutline: 'receipt-outline' },
+  { name: 'ai',           label: 'AI INSIGHTS', icon: 'sparkles',     iconOutline: 'sparkles-outline' },
+  { name: 'wallets',      label: 'WALLETS',     icon: 'wallet',       iconOutline: 'wallet-outline' },
+];
+
+function CustomTabBar({ state, navigation }: BottomTabBarProps) {
+  const insets = useSafeAreaInsets();
+
+  const visibleRoutes = state.routes.filter((r) =>
+    TAB_CONFIG.some((t) => t.name === r.name),
+  );
+
   return (
-    <TouchableOpacity
-      style={styles.fab}
-      onPress={() => router.push('/transactions/new')}
-      activeOpacity={0.8}
-    >
-      <Ionicons name="add" size={32} color="#FFFFFF" />
-    </TouchableOpacity>
+    <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, 8) + 6 }]}>
+      {visibleRoutes.map((route) => {
+        const cfg = TAB_CONFIG.find((t) => t.name === route.name)!;
+        const routeIndex = state.routes.findIndex((r) => r.key === route.key);
+        const isFocused = state.index === routeIndex;
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name);
+          }
+        };
+
+        return (
+          <TouchableOpacity
+            key={route.key}
+            style={styles.tabItem}
+            onPress={onPress}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.tabInner, isFocused && styles.tabInnerActive]}>
+              <Ionicons
+                name={(isFocused ? cfg.icon : cfg.iconOutline) as any}
+                size={20}
+                color={isFocused ? theme.colors.primary : theme.colors.textSecondary}
+              />
+              <Text style={[styles.tabLabel, isFocused && styles.tabLabelActive]}>
+                {cfg.label}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
   );
 }
 
 export default function TabsLayout() {
   return (
     <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.textSecondary,
-        tabBarLabelStyle: styles.tabLabel,
-      }}
+      tabBar={(props) => <CustomTabBar {...props} />}
+      screenOptions={{ headerShown: false }}
     >
-      <Tabs.Screen
-        name="home"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="transactions"
-        options={{
-          title: 'Transactions',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="list-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="add"
-        options={{
-          title: '',
-          tabBarIcon: () => <AddButton />,
-          tabBarLabel: () => null,
-        }}
-        listeners={() => ({
-          tabPress: (e) => {
-            e.preventDefault();
-          },
-        })}
-      />
-      <Tabs.Screen
-        name="goals"
-        options={{
-          title: 'Goals',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="flag-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Settings',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size} color={color} />
-          ),
-        }}
-      />
+      <Tabs.Screen name="home" />
+      <Tabs.Screen name="transactions" />
+      <Tabs.Screen name="ai" />
+      <Tabs.Screen name="wallets" />
+      <Tabs.Screen name="add"      options={{ href: null }} />
+      <Tabs.Screen name="goals"    options={{ href: null }} />
+      <Tabs.Screen name="settings" options={{ href: null }} />
     </Tabs>
   );
 }
 
 const styles = StyleSheet.create({
   tabBar: {
+    flexDirection: 'row',
     backgroundColor: theme.colors.surface,
-    borderTopColor: theme.colors.surfaceLight,
     borderTopWidth: 1,
-    height: 80,
-    paddingBottom: 20,
-    paddingTop: 8,
+    borderTopColor: theme.colors.surfaceLight,
+    paddingTop: 10,
+    paddingHorizontal: 4,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  tabInner: {
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: theme.borderRadius.xl,
+    gap: 3,
+    minWidth: 60,
+  },
+  tabInnerActive: {
+    backgroundColor: theme.colors.primary + '18',
   },
   tabLabel: {
-    fontSize: 11,
-    fontWeight: '500',
+    fontSize: 9,
+    fontWeight: '600',
+    letterSpacing: 0.4,
+    color: theme.colors.textSecondary,
   },
-  fab: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: theme.colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-    shadowColor: theme.colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+  tabLabelActive: {
+    color: theme.colors.primary,
   },
 });

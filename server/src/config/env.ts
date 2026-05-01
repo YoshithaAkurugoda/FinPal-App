@@ -32,8 +32,17 @@ export const env = {
   get JWT_REFRESH_SECRET() {
     return required('JWT_REFRESH_SECRET');
   },
+  get AI_PROVIDER() {
+    return optional('AI_PROVIDER', 'nvidia') as 'anthropic' | 'gemini' | 'nvidia';
+  },
   get ANTHROPIC_API_KEY() {
-    return required('ANTHROPIC_API_KEY');
+    return optional('ANTHROPIC_API_KEY', '');
+  },
+  get GEMINI_API_KEY() {
+    return optional('GEMINI_API_KEY', '');
+  },
+  get NVIDIA_API_KEY() {
+    return optional('NVIDIA_API_KEY', '');
   },
   get SUPABASE_URL() {
     return optional('SUPABASE_URL', '');

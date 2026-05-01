@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/constants/theme';
 import { useBudgetStore } from '@/stores/budgetStore';
 import { useTransactionStore } from '@/stores/transactionStore';
+import { useCurrency, formatAmount } from '@/lib/format';
 import ProgressBar from '@/components/ProgressBar';
 import TransactionCard from '@/components/TransactionCard';
 import Button from '@/components/Button';
@@ -26,6 +27,7 @@ export default function BudgetDetailScreen() {
   const { transactions, fetchTransactions } = useTransactionStore();
 
   const budget = budgets.find((b) => b.id === id);
+  const currency = useCurrency();
 
   const [showEdit, setShowEdit] = useState(false);
   const [newLimit, setNewLimit] = useState(budget?.limit.toString() ?? '');
@@ -87,20 +89,20 @@ export default function BudgetDetailScreen() {
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Spent</Text>
             <Text style={styles.summaryValue}>
-              {budget.spent.toLocaleString('en-LK')}
+              {formatAmount(budget.spent, currency)}
             </Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Limit</Text>
             <Text style={styles.summaryValue}>
-              {budget.limit.toLocaleString('en-LK')}
+              {formatAmount(budget.limit, currency)}
             </Text>
           </View>
           <ProgressBar progress={budget.progress} height={8} />
           <Text style={styles.remaining}>
             {budget.remaining >= 0
-              ? `${budget.remaining.toLocaleString('en-LK')} remaining`
-              : `${Math.abs(budget.remaining).toLocaleString('en-LK')} over budget`}
+              ? `${formatAmount(budget.remaining, currency)} remaining`
+              : `${formatAmount(Math.abs(budget.remaining), currency)} over budget`}
           </Text>
         </View>
 

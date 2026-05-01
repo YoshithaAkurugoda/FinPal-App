@@ -11,8 +11,11 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
 import { theme } from '@/constants/theme';
 import { useAuthStore } from '@/stores/authStore';
+import { apiPut } from '@/lib/api';
 import Card from '@/components/Card';
 import Input from '@/components/Input';
 import Button from '@/components/Button';
@@ -23,7 +26,7 @@ export default function SettingsScreen() {
   const [monthlyIncome, setMonthlyIncome] = useState(
     user?.monthlyIncome?.toString() ?? '',
   );
-  const [notifications, setNotifications] = useState(true);
+  const [notifications, setNotifications] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const handleSaveIncome = async () => {
@@ -36,6 +39,39 @@ export default function SettingsScreen() {
       Alert.alert('Error', 'Failed to update');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleNotificationsToggle = async (enabled: boolean) => {
+    if (enabled) {
+      if (!Device.isDevice) {
+        Alert.alert('Not Available', 'Push notifications require a physical device.');
+        return;
+      }
+      const { status: existing } = await Notifications.getPermissionsAsync();
+      let finalStatus = existing;
+      if (existing !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== 'granted') {
+        Alert.alert('Permission Denied', 'Enable notifications in your device settings.');
+        return;
+      }
+      const tokenData = await Notifications.getExpoPushTokenAsync();
+      try {
+        await apiPut('/users/fcm-token', { fcmToken: tokenData.data });
+        setNotifications(true);
+      } catch {
+        Alert.alert('Error', 'Failed to register for notifications.');
+      }
+    } else {
+      try {
+        await apiPut('/users/fcm-token', { fcmToken: '' });
+        setNotifications(false);
+      } catch {
+        Alert.alert('Error', 'Failed to update notification settings.');
+      }
     }
   };
 
@@ -104,7 +140,7 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="wallet-outline"
             label="Wallets"
-            onPress={() => Alert.alert('Wallets', 'Wallet management coming soon')}
+            onPress={() => router.push('/(tabs)/wallets')}
           />
           <SettingsRow
             icon="bar-chart-outline"
@@ -137,7 +173,7 @@ export default function SettingsScreen() {
             </View>
             <Switch
               value={notifications}
-              onValueChange={setNotifications}
+              onValueChange={handleNotificationsToggle}
               trackColor={{
                 false: theme.colors.surfaceLight,
                 true: theme.colors.primary + '60',

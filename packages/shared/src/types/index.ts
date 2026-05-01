@@ -168,3 +168,67 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
 }
+
+// ─── Report response types ───────────────────────────────────────────────────
+
+export interface CategorySpend {
+  category: string;
+  total: number;
+  count: number;
+  percentage: number;
+}
+
+export interface MonthlyReport {
+  month: number;
+  year: number;
+  totalSpend: number;
+  transactionCount: number;
+  categories: CategorySpend[];
+}
+
+export interface MerchantSpend {
+  merchant: string;
+  total: number;
+  count: number;
+}
+
+export interface MerchantReport {
+  from: string;
+  to: string;
+  merchants: MerchantSpend[];
+}
+
+export interface MonthSnapshot {
+  month: number;
+  year: number;
+  label: string;
+  totalSpend: number;
+  categories: Record<string, number>;
+}
+
+export interface MomReport {
+  snapshots: MonthSnapshot[];
+}
+
+export interface SavingsSnapshot {
+  month: number;
+  year: number;
+  label: string;
+  income: number;
+  expenses: number;
+  savings: number;
+  savingsRate: number;
+}
+
+export interface SavingsTrendReport {
+  snapshots: SavingsSnapshot[];
+}
+
+export interface IncomePercentageReport {
+  month: number;
+  year: number;
+  monthlyIncome: number;
+  categories: Array<{ category: string; total: number; percentOfIncome: number }>;
+  totalSpend: number;
+  totalPercentOfIncome: number;
+}

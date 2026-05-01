@@ -15,6 +15,7 @@ import { format } from 'date-fns';
 import { theme } from '@/constants/theme';
 import { useGoalStore } from '@/stores/goalStore';
 import { useWalletStore } from '@/stores/walletStore';
+import { useCurrency, formatAmount } from '@/lib/format';
 import SpendingRing from '@/components/SpendingRing';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
@@ -27,6 +28,7 @@ export default function GoalDetailScreen() {
   const { wallets, fetchWallets } = useWalletStore();
 
   const goal = goals.find((g) => g.id === id);
+  const currency = useCurrency();
 
   const [showContribute, setShowContribute] = useState(false);
   const [amount, setAmount] = useState('');
@@ -96,13 +98,13 @@ export default function GoalDetailScreen() {
             <View style={styles.stat}>
               <Text style={styles.statLabel}>Current</Text>
               <Text style={styles.statValue}>
-                {goal.currentAmount.toLocaleString('en-LK')}
+                {formatAmount(goal.currentAmount, currency)}
               </Text>
             </View>
             <View style={styles.stat}>
               <Text style={styles.statLabel}>Target</Text>
               <Text style={styles.statValue}>
-                {goal.targetAmount.toLocaleString('en-LK')}
+                {formatAmount(goal.targetAmount, currency)}
               </Text>
             </View>
           </View>
@@ -117,8 +119,15 @@ export default function GoalDetailScreen() {
               </Text>
             </View>
             <View style={styles.stat}>
-              <Text style={styles.statLabel}>Projected</Text>
-              <Text style={styles.statValue}>
+              <View style={styles.statLabelRow}>
+                {goal.projectedDate && (
+                  <Ionicons name="sparkles" size={11} color={theme.colors.primary} />
+                )}
+                <Text style={styles.statLabel}>
+                  {goal.projectedDate ? 'AI Projected' : 'Projected'}
+                </Text>
+              </View>
+              <Text style={[styles.statValue, goal.projectedDate && styles.statValueAi]}>
                 {goal.projectedDate
                   ? format(new Date(goal.projectedDate), 'MMM yyyy')
                   : '—'}
@@ -215,15 +224,23 @@ const styles = StyleSheet.create({
   stat: {
     flex: 1,
   },
+  statLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 4,
+  },
   statLabel: {
     color: theme.colors.textSecondary,
     fontSize: theme.fontSize.xs,
-    marginBottom: 4,
   },
   statValue: {
     color: theme.colors.text,
     fontSize: theme.fontSize.md,
     fontWeight: '600',
+  },
+  statValueAi: {
+    color: theme.colors.primary,
   },
   modalOverlay: {
     flex: 1,

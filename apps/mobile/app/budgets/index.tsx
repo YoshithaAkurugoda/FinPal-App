@@ -12,20 +12,22 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/constants/theme';
 import { useBudgetStore, BudgetWithStatus } from '@/stores/budgetStore';
+import { useCurrency, formatAmount } from '@/lib/format';
 import Card from '@/components/Card';
 import ProgressBar from '@/components/ProgressBar';
 
 export default function BudgetsScreen() {
   const router = useRouter();
   const { budgets, isLoading, fetchBudgets } = useBudgetStore();
+  const currency = useCurrency();
 
   useEffect(() => {
     fetchBudgets();
   }, []);
 
   const renderItem = ({ item }: { item: BudgetWithStatus }) => {
-    const spent = item.spent.toLocaleString('en-LK');
-    const limit = item.limit.toLocaleString('en-LK');
+    const spent = formatAmount(item.spent, currency);
+    const limit = formatAmount(item.limit, currency);
 
     return (
       <Card
@@ -41,8 +43,8 @@ export default function BudgetsScreen() {
         <ProgressBar progress={item.progress} height={6} />
         <Text style={styles.remaining}>
           {item.remaining >= 0
-            ? `${item.remaining.toLocaleString('en-LK')} remaining`
-            : `${Math.abs(item.remaining).toLocaleString('en-LK')} over budget`}
+            ? `${formatAmount(item.remaining, currency)} remaining`
+            : `${formatAmount(Math.abs(item.remaining), currency)} over budget`}
         </Text>
       </Card>
     );

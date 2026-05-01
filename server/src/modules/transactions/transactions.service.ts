@@ -1,4 +1,5 @@
 import { prisma } from '../../lib/prisma.js';
+import { memoryExtractionQueue } from '../../config/queue.js';
 import { invalidateBudgetCache, checkBudgetThresholds } from '../../services/budget.service.js';
 
 function computeSignedAmount(type: string, amount: number): number {
@@ -101,7 +102,7 @@ export async function approveTransaction(
     });
   }
 
-  const updateData: any = { status: 'approved' };
+  const updateData: any = { status: 'approved', approvedAt: new Date() };
 
   if (edits?.merchant !== undefined) updateData.merchant = edits.merchant;
   if (edits?.category !== undefined) updateData.category = edits.category;
@@ -121,6 +122,9 @@ export async function approveTransaction(
     await invalidateBudgetCache(userId, tx.category);
   }
   await checkBudgetThresholds(userId, category);
+
+  // Enqueue memory extraction for the approved transaction
+  await memoryExtractionQueue.add('extract', { userId, transactionId: updated.id });
 
   return updated;
 }
@@ -155,7 +159,7 @@ export async function batchApproveTransactions(
 
     await tx.transaction.updateMany({
       where: { id: { in: pending.map((t) => t.id) } },
-      data: { status: 'approved' },
+      data: { status: 'approved', approvedAt: new Date() },
     });
 
     return pending.length;
@@ -172,6 +176,13 @@ export async function batchApproveTransactions(
       await invalidateBudgetCache(userId, cat);
       await checkBudgetThresholds(userId, cat);
     }
+
+    // Enqueue memory extraction for each approved transaction
+    await Promise.allSettled(
+      transactionIds.map((id) =>
+        memoryExtractionQueue.add('extract', { userId, transactionId: id }),
+      ),
+    );
   }
 
   return result;

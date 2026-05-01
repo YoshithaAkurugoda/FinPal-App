@@ -9,8 +9,15 @@ export async function chatHandler(req: Request, res: Response): Promise<void> {
     const reply = await aiService.handleChat(userId, req.body.messages);
     res.json({ success: true, data: reply });
   } catch (err: any) {
-    const status = err.statusCode ?? 500;
-    res.status(status).json({ success: false, error: err.message });
+    console.error('[AI Chat Error]', err.status ?? err.statusCode ?? '', err.message);
+    const status = err.statusCode ?? err.status ?? 500;
+    const message =
+      err.status === 401 || err.message?.includes('auth')
+        ? 'AI service authentication failed. Check your AI_PROVIDER and API key env vars.'
+        : err.status === 429
+        ? 'AI is busy right now — please try again in a moment.'
+        : err.message ?? 'AI service error';
+    res.status(status).json({ success: false, error: message });
   }
 }
 

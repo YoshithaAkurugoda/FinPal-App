@@ -3,6 +3,7 @@ import { GOAL_MILESTONES } from '@finpal/shared';
 import { prisma } from '../../lib/prisma.js';
 import { sendNotification } from '../../services/notification.service.js';
 import { checkBudgetThresholds, invalidateBudgetCache } from '../../services/budget.service.js';
+import { computeNetBalance } from '../../services/ledger.service.js';
 
 function mapGoalRow(g: {
   id: string;
@@ -152,10 +153,83 @@ export async function contributeToGoal(
         userId,
         `Goal Milestone: ${goal.name}`,
         `You've reached ${milestone}% of your "${goal.name}" goal!`,
+        { type: 'goal_milestone', goalId },
       );
       break;
     }
   }
 
+  // Refresh projected completion in the background
+  void refreshProjectedCompletion(userId, goalId);
+
   return { goal: mapGoalRow(result.goal), transaction: result.transaction };
+}
+
+export async function updateGoal(
+  userId: string,
+  goalId: string,
+  data: { name?: string; targetAmount?: number; targetDate?: string | null },
+) {
+  const goal = await prisma.goal.findFirst({ where: { id: goalId, userId } });
+  if (!goal) throw Object.assign(new Error('Goal not found'), { statusCode: 404 });
+
+  const updated = await prisma.goal.update({
+    where: { id: goalId },
+    data: {
+      ...(data.name !== undefined && { name: data.name }),
+      ...(data.targetAmount !== undefined && { targetAmount: data.targetAmount }),
+      ...(data.targetDate !== undefined && {
+        targetDate: data.targetDate ? new Date(data.targetDate) : null,
+      }),
+    },
+  });
+
+  // Recompute projected completion after edit
+  await refreshProjectedCompletion(userId, goalId);
+
+  return mapGoalRow(updated);
+}
+
+export async function archiveGoal(userId: string, goalId: string) {
+  const goal = await prisma.goal.findFirst({ where: { id: goalId, userId } });
+  if (!goal) throw Object.assign(new Error('Goal not found'), { statusCode: 404 });
+
+  const updated = await prisma.goal.update({
+    where: { id: goalId },
+    data: { status: 'archived' },
+  });
+  return mapGoalRow(updated);
+}
+
+/**
+ * Compute projected completion date from last-30-day average monthly surplus,
+ * then persist it to Goal.projectedCompletionDate.
+ */
+export async function refreshProjectedCompletion(userId: string, goalId: string): Promise<void> {
+  const goal = await prisma.goal.findFirst({ where: { id: goalId, userId } });
+  if (!goal) return;
+
+  const remaining = Math.max(0, Number(goal.targetAmount) - Number(goal.currentAmount));
+  if (remaining <= 0) return;
+
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  // Monthly savings as a proxy: approved credit transactions minus debit transactions in 30d
+  const aggregate = await prisma.transaction.aggregate({
+    where: { userId, status: 'approved', transactionDate: { gte: thirtyDaysAgo } },
+    _sum: { signedAmount: true },
+  });
+
+  const netMonthly = Number(aggregate._sum.signedAmount ?? 0);
+  if (netMonthly <= 0) return; // Can't project if not saving
+
+  const monthsToComplete = remaining / netMonthly;
+  const projected = new Date();
+  projected.setDate(projected.getDate() + Math.ceil(monthsToComplete * 30));
+
+  await prisma.goal.update({
+    where: { id: goalId },
+    data: { projectedCompletionDate: projected },
+  });
 }

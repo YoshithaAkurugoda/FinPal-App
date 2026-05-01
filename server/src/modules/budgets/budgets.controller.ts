@@ -34,3 +34,14 @@ export async function updateBudgetHandler(req: Request, res: Response): Promise<
     res.status(status).json({ success: false, error: err.message });
   }
 }
+
+export async function deleteBudgetHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = getUserId(req);
+    await budgetsService.deleteBudget(userId, req.params.id as string);
+    res.json({ success: true, data: null });
+  } catch (err: any) {
+    const status = err.statusCode ?? 500;
+    res.status(status).json({ success: false, error: err.message });
+  }
+}

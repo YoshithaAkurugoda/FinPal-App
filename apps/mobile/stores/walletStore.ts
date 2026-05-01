@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 
 export type WalletType = 'bank' | 'cash' | 'ewallet';
 
@@ -25,6 +25,8 @@ interface WalletState {
 
   fetchWallets: () => Promise<void>;
   createWallet: (data: CreateWalletData) => Promise<Wallet>;
+  updateWallet: (id: string, data: { name?: string; type?: WalletType }) => Promise<void>;
+  deleteWallet: (id: string) => Promise<void>;
   invalidateBalance: () => void;
 }
 
@@ -55,6 +57,27 @@ export const useWalletStore = create<WalletState>()((set, get) => ({
       totalBalance: state.totalBalance + (wallet.currentBalance ?? 0),
     }));
     return wallet;
+  },
+
+  updateWallet: async (id, data) => {
+    const updated = await apiPut<Wallet>(`/wallets/${id}`, data);
+    set((state) => ({
+      wallets: state.wallets.map((w) => (w.id === id ? updated : w)),
+      totalBalance: state.wallets
+        .map((w) => (w.id === id ? updated : w))
+        .reduce((s, w) => s + (w.currentBalance ?? 0), 0),
+    }));
+  },
+
+  deleteWallet: async (id) => {
+    await apiDelete(`/wallets/${id}`);
+    set((state) => {
+      const wallets = state.wallets.filter((w) => w.id !== id);
+      return {
+        wallets,
+        totalBalance: wallets.reduce((s, w) => s + (w.currentBalance ?? 0), 0),
+      };
+    });
   },
 
   invalidateBalance: () => {

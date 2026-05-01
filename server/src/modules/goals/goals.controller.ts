@@ -33,3 +33,25 @@ export async function contributeToGoalHandler(req: Request, res: Response): Prom
     res.status(status).json({ success: false, error: err.message });
   }
 }
+
+export async function updateGoalHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = getUserId(req);
+    const goal = await goalsService.updateGoal(userId, req.params.id as string, req.body);
+    res.json({ success: true, data: goal });
+  } catch (err: any) {
+    const status = err.statusCode ?? 500;
+    res.status(status).json({ success: false, error: err.message });
+  }
+}
+
+export async function archiveGoalHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = getUserId(req);
+    const goal = await goalsService.archiveGoal(userId, req.params.id as string);
+    res.json({ success: true, data: goal });
+  } catch (err: any) {
+    const status = err.statusCode ?? 500;
+    res.status(status).json({ success: false, error: err.message });
+  }
+}

@@ -7,7 +7,7 @@ const MAX_STATEMENT_TEXT = 500_000;
 
 export async function submitSms(
   userId: string,
-  data: { rawText: string; walletId: string },
+  data: { rawText: string; walletId: string; hintCategory?: string },
 ) {
   const log = await prisma.ingestionLog.create({
     data: {
@@ -23,6 +23,7 @@ export async function submitSms(
     userId,
     rawText: data.rawText,
     walletId: data.walletId,
+    hintCategory: data.hintCategory,
   });
 
   return log;

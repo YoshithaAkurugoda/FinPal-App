@@ -67,3 +67,15 @@ export async function updateBudget(
   });
   return toBudgetDto(userId, updated);
 }
+
+export async function deleteBudget(userId: string, budgetId: string): Promise<void> {
+  const budget = await prisma.budget.findFirst({
+    where: { id: budgetId, userId },
+  });
+
+  if (!budget) {
+    throw Object.assign(new Error('Budget not found'), { statusCode: 404 });
+  }
+
+  await prisma.budget.delete({ where: { id: budgetId } });
+}
