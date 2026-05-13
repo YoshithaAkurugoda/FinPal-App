@@ -22,7 +22,26 @@ import usersRoutes from './modules/users/users.routes.js';
 const app = express();
 
 app.use(helmet());
-app.use(cors());
+
+const allowedOrigins = env.ALLOWED_ORIGINS;
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow non-browser clients (no Origin header) and configured origins.
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.length === 0) {
+        // Dev fallback: permit localhost only when no allowlist is configured.
+        if (env.NODE_ENV !== 'production' && /^http:\/\/localhost(:\d+)?$/.test(origin)) {
+          return callback(null, true);
+        }
+        return callback(new Error('CORS: no ALLOWED_ORIGINS configured'));
+      }
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error(`CORS: origin ${origin} not allowed`));
+    },
+    credentials: true,
+  }),
+);
 app.use(express.json({ limit: '10mb' }));
 
 const limiter = rateLimit({
@@ -34,12 +53,23 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
+// Stricter limiter for credential endpoints: 5 attempts / 15min / IP.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: { success: false, error: 'Too many auth attempts, please try again later' },
+});
+
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.use('/auth', authRoutes);
+app.use('/auth', authLimiter, authRoutes);
 app.use('/wallets', walletsRoutes);
+
 app.use('/transactions', transactionsRoutes);
 app.use('/budgets', budgetsRoutes);
 app.use('/goals', goalsRoutes);
@@ -53,9 +83,22 @@ app.use((_req: Request, res: Response) => {
   res.status(404).json({ success: false, error: 'Not found' });
 });
 
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  console.error('[Error]', err);
-  res.status(500).json({ success: false, error: 'Internal server error' });
+app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+  // Log only structured, non-sensitive fields. Avoid dumping the full error
+  // object (which can include user payload, SQL fragments, or stack frames).
+  const errAny = err as Error & { code?: string; statusCode?: number };
+  console.error(
+    JSON.stringify({
+      level: 'error',
+      msg: 'request_error',
+      method: req.method,
+      path: req.path,
+      name: err.name,
+      code: errAny.code,
+      status: errAny.statusCode ?? 500,
+    }),
+  );
+  res.status(errAny.statusCode ?? 500).json({ success: false, error: 'Internal server error' });
 });
 
 app.listen(env.PORT, () => {

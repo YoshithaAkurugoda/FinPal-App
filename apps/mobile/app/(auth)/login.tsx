@@ -15,16 +15,23 @@ import { theme } from '@/constants/theme';
 import { useAuthStore } from '@/stores/authStore';
 import Input from '@/components/Input';
 import Button from '@/components/Button';
+import { loginSchema } from '@finpal/shared';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { login, isLoading, error, clearError } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleLogin = () => {
-    if (!email.trim() || !password.trim()) return;
-    login(email.trim(), password);
+    setValidationError(null);
+    const result = loginSchema.safeParse({ email: email.trim(), password });
+    if (!result.success) {
+      setValidationError(result.error.errors[0]?.message ?? 'Invalid input');
+      return;
+    }
+    login(result.data.email, result.data.password);
   };
 
   return (
@@ -50,11 +57,11 @@ export default function LoginScreen() {
           <Text style={styles.subtitle}>Access your luminescent financial intelligence.</Text>
 
           {/* Error */}
-          {error && (
-            <TouchableOpacity onPress={clearError}>
+          {(error || validationError) && (
+            <TouchableOpacity onPress={() => { clearError(); setValidationError(null); }}>
               <View style={styles.errorBanner}>
                 <Ionicons name="alert-circle-outline" size={16} color={theme.colors.danger} />
-                <Text style={styles.errorText}>{error}</Text>
+                <Text style={styles.errorText}>{validationError ?? error}</Text>
               </View>
             </TouchableOpacity>
           )}

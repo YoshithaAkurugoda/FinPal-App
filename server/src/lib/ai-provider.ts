@@ -23,8 +23,10 @@ export interface AiRequest {
 
 // ─── Provider implementations ────────────────────────────────────────────────
 
+const AI_CALL_TIMEOUT_MS = 60_000;
+
 async function callAnthropic(req: AiRequest): Promise<string> {
-  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, timeout: AI_CALL_TIMEOUT_MS });
   const model =
     req.tier === 'fast' ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-20250514';
 
@@ -71,7 +73,10 @@ async function callGemini(req: AiRequest, attempt = 0): Promise<string> {
   const maxRetries = req.maxRetries ?? 2;
 
   try {
-    const result = await model.generateContent({ contents });
+    const result = await model.generateContent({
+      contents,
+      generationConfig: { maxOutputTokens: req.maxTokens },
+    }, { signal: AbortSignal.timeout(AI_CALL_TIMEOUT_MS) } as any);
     return result.response.text();
   } catch (err: unknown) {
     const status = (err as any)?.status ?? (err as any)?.statusCode;

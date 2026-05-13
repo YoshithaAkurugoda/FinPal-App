@@ -1,17 +1,30 @@
-import { Queue } from 'bullmq';
+import { Queue, type DefaultJobOptions } from 'bullmq';
 
 import { redis } from './redis.js';
 
 const connection = redis;
 
-export const smsParseQueue = new Queue('sms-parse', { connection });
-export const statementParseQueue = new Queue('statement-parse', { connection });
-export const aiInsightQueue = new Queue('ai-insight', { connection });
-export const patternDetectionQueue = new Queue('pattern-detection', { connection });
-export const notificationQueue = new Queue('notification', { connection });
-export const memoryExtractionQueue = new Queue('memory-extraction', { connection });
-export const budgetRolloverQueue = new Queue('budget-rollover', { connection });
-export const reconciliationReminderQueue = new Queue('reconciliation-reminder', { connection });
+// Applied to every enqueued job unless overridden per-call.
+// - attempts/backoff: bounded retries with exponential backoff so transient
+//   errors recover but permanent failures don't loop forever.
+// - removeOnComplete/Fail: keep Redis from filling up with completed jobs.
+const defaultJobOptions: DefaultJobOptions = {
+  attempts: 3,
+  backoff: { type: 'exponential', delay: 2000 },
+  removeOnComplete: { age: 24 * 60 * 60, count: 1000 },
+  removeOnFail: { age: 7 * 24 * 60 * 60 },
+};
+
+const queueOpts = { connection, defaultJobOptions };
+
+export const smsParseQueue = new Queue('sms-parse', queueOpts);
+export const statementParseQueue = new Queue('statement-parse', queueOpts);
+export const aiInsightQueue = new Queue('ai-insight', queueOpts);
+export const patternDetectionQueue = new Queue('pattern-detection', queueOpts);
+export const notificationQueue = new Queue('notification', queueOpts);
+export const memoryExtractionQueue = new Queue('memory-extraction', queueOpts);
+export const budgetRolloverQueue = new Queue('budget-rollover', queueOpts);
+export const reconciliationReminderQueue = new Queue('reconciliation-reminder', queueOpts);
 
 export async function setupRepeatableJobs(): Promise<void> {
   // Daily check-in — 08:00 UTC every day

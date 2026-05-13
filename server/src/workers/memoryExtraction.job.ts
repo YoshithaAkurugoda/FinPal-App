@@ -28,7 +28,9 @@ export async function processMemoryExtractionJob(data: {
   const { userId, transactionId } = data;
 
   const [transaction, user, recentMemories] = await Promise.all([
-    prisma.transaction.findUnique({ where: { id: transactionId } }),
+    // Verify the transaction belongs to this user AND is approved before touching memory.
+    // Workers receive userId from job data — we can't assume it was enqueued securely.
+    prisma.transaction.findFirst({ where: { id: transactionId, userId, status: 'approved' } }),
     prisma.user.findUnique({ where: { id: userId }, select: { name: true, currency: true } }),
     prisma.companionMemory.findMany({
       where: { userId },

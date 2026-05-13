@@ -64,33 +64,37 @@ confidence: 0.0-1.0 per row. If unsure of a row, omit it or use low confidence.`
     }
 
     const rows = parsed.data.transactions;
-    let created = 0;
-    for (const p of rows) {
-      const signedAmount = p.type === 'debit' ? -Math.abs(p.amount) : Math.abs(p.amount);
-      const txDate = p.date ? new Date(p.date) : new Date();
-      await prisma.transaction.create({
-        data: {
-          userId,
-          walletId,
-          amount: Math.abs(p.amount),
-          signedAmount,
-          type: p.type,
-          merchant: p.merchant,
-          category: p.category,
-          status: 'pending',
-          source: 'statement',
-          rawInput: null,
-          aiConfidence: p.confidence ?? 0.7,
-          transactionDate: txDate,
-        },
-      });
-      created += 1;
-    }
 
-    await prisma.ingestionLog.update({
-      where: { id: ingestionLogId },
-      data: { status: 'processed' },
-    });
+    // All rows plus the log status update are wrapped in a single DB transaction
+    // so a mid-import crash leaves zero orphaned rows and the log stays 'processing'.
+    await prisma.$transaction([
+      ...rows.map((p) => {
+        const signedAmount = p.type === 'debit' ? -Math.abs(p.amount) : Math.abs(p.amount);
+        const txDate = p.date ? new Date(p.date) : new Date();
+        return prisma.transaction.create({
+          data: {
+            userId,
+            walletId,
+            amount: Math.abs(p.amount),
+            signedAmount,
+            type: p.type,
+            merchant: p.merchant,
+            category: p.category,
+            status: 'pending',
+            source: 'statement',
+            rawInput: null,
+            aiConfidence: p.confidence ?? 0.7,
+            transactionDate: txDate,
+          },
+        });
+      }),
+      prisma.ingestionLog.update({
+        where: { id: ingestionLogId },
+        data: { status: 'processed' },
+      }),
+    ]);
+
+    const created = rows.length;
 
     if (created > 0) {
       await sendNotification(

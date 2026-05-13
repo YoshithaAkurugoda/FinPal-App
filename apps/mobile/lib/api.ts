@@ -12,6 +12,10 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// Shared in-flight refresh promise — prevents multiple concurrent 401s from
+// each triggering their own refresh call and racing to rotate the same token.
+let pendingRefresh: Promise<void> | null = null;
+
 api.interceptors.response.use((response) => {
   const body = response.data;
   if (
@@ -48,24 +52,37 @@ api.interceptors.response.use(
         return Promise.reject(error);
       }
 
-      try {
-        const { data } = await axios.post(`${API_URL}/auth/refresh`, {
-          refreshToken,
+      // If another 401 is already refreshing, wait for it rather than
+      // issuing a second refresh call with the same token.
+      if (!pendingRefresh) {
+        pendingRefresh = (async () => {
+          try {
+            const { data } = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
+            const body = data as {
+              success?: boolean;
+              data?: { tokens?: { accessToken: string; refreshToken: string } };
+              tokens?: { accessToken: string; refreshToken: string };
+            };
+            const inner = body.success && body.data ? body.data : body;
+            const access = inner.tokens?.accessToken;
+            const refresh = inner.tokens?.refreshToken;
+            if (!access || !refresh) throw new Error('Invalid refresh response');
+            setTokens(access, refresh);
+          } catch {
+            logout();
+          }
+        })().finally(() => {
+          pendingRefresh = null;
         });
-        const body = data as {
-          success?: boolean;
-          data?: { tokens?: { accessToken: string; refreshToken: string } };
-          tokens?: { accessToken: string; refreshToken: string };
-        };
-        const inner = body.success && body.data ? body.data : body;
-        const access = inner.tokens?.accessToken;
-        const refresh = inner.tokens?.refreshToken;
-        if (!access || !refresh) throw new Error('Invalid refresh response');
-        setTokens(access, refresh);
-        originalRequest.headers.Authorization = `Bearer ${access}`;
+      }
+
+      try {
+        await pendingRefresh;
+        const { accessToken } = useAuthStore.getState();
+        if (!accessToken) return Promise.reject(error);
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return api(originalRequest);
       } catch {
-        logout();
         return Promise.reject(error);
       }
     }

@@ -1,6 +1,8 @@
 import { Router } from 'express';
+import { monthReportSchema, merchantReportSchema, trendReportSchema } from '@finpal/shared';
 
 import { authMiddleware } from '../../middleware/auth.js';
+import { validateQuery } from '../../middleware/validate.js';
 import {
   getMonthlyReportHandler,
   getMerchantReportHandler,
@@ -13,10 +15,10 @@ const router = Router();
 
 router.use(authMiddleware);
 
-router.get('/monthly', getMonthlyReportHandler);
-router.get('/merchants', getMerchantReportHandler);
-router.get('/month-over-month', getMonthOverMonthHandler);
-router.get('/savings-trend', getSavingsTrendHandler);
-router.get('/income-percentages', getIncomePercentagesHandler);
+router.get('/monthly', validateQuery(monthReportSchema), getMonthlyReportHandler);
+router.get('/merchants', validateQuery(merchantReportSchema), getMerchantReportHandler);
+router.get('/month-over-month', validateQuery(trendReportSchema), getMonthOverMonthHandler);
+router.get('/savings-trend', validateQuery(trendReportSchema), getSavingsTrendHandler);
+router.get('/income-percentages', validateQuery(monthReportSchema), getIncomePercentagesHandler);
 
 export default router;

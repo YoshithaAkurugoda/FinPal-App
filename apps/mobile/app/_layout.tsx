@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
@@ -12,6 +12,7 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const router = useRouter();
+  const segments = useSegments();
   const initialize = useAuthStore((s) => s.initialize);
   const isLoading = useAuthStore((s) => s.isLoading);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -21,6 +22,15 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     });
   }, []);
+
+  // Route-level auth guard: handles deep-link bypasses that skip index.tsx.
+  useEffect(() => {
+    if (isLoading) return;
+    const inAuthGroup = segments[0] === '(auth)';
+    if (!isAuthenticated && !inAuthGroup) {
+      router.replace('/(auth)/login');
+    }
+  }, [isAuthenticated, isLoading, segments]);
 
   useEffect(() => {
     const unsubscribe = startQueueListener();

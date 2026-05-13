@@ -16,6 +16,7 @@ import { theme } from '@/constants/theme';
 import { useAuthStore } from '@/stores/authStore';
 import Input from '@/components/Input';
 import Button from '@/components/Button';
+import { registerSchema } from '@finpal/shared';
 
 const CURRENCIES = ['LKR', 'USD', 'EUR', 'GBP', 'INR'];
 
@@ -28,20 +29,26 @@ export default function RegisterScreen() {
   const [monthlyIncome, setMonthlyIncome] = useState('');
   const [currency, setCurrency] = useState('LKR');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleRegister = () => {
-    if (!name.trim() || !email.trim() || !password.trim()) return;
+    setValidationError(null);
     if (!agreedToTerms) {
       Alert.alert('Terms Required', 'Please agree to the Terms of Service to continue.');
       return;
     }
-    register({
+    const result = registerSchema.safeParse({
       name: name.trim(),
       email: email.trim(),
       password,
       monthlyIncome: monthlyIncome ? Number(monthlyIncome) : undefined,
       currency,
     });
+    if (!result.success) {
+      setValidationError(result.error.errors[0]?.message ?? 'Invalid input');
+      return;
+    }
+    register(result.data);
   };
 
   return (
@@ -69,11 +76,11 @@ export default function RegisterScreen() {
           </Text>
 
           {/* Error */}
-          {error && (
-            <TouchableOpacity onPress={clearError}>
+          {(error || validationError) && (
+            <TouchableOpacity onPress={() => { clearError(); setValidationError(null); }}>
               <View style={styles.errorBanner}>
                 <Ionicons name="alert-circle-outline" size={16} color={theme.colors.danger} />
-                <Text style={styles.errorText}>{error}</Text>
+                <Text style={styles.errorText}>{validationError ?? error}</Text>
               </View>
             </TouchableOpacity>
           )}

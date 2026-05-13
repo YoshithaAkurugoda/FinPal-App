@@ -22,27 +22,33 @@ interface WalletState {
   wallets: Wallet[];
   totalBalance: number;
   isLoading: boolean;
+  error: string | null;
 
   fetchWallets: () => Promise<void>;
   createWallet: (data: CreateWalletData) => Promise<Wallet>;
   updateWallet: (id: string, data: { name?: string; type?: WalletType }) => Promise<void>;
   deleteWallet: (id: string) => Promise<void>;
   invalidateBalance: () => void;
+  clearError: () => void;
 }
 
 export const useWalletStore = create<WalletState>()((set, get) => ({
   wallets: [],
   totalBalance: 0,
   isLoading: false,
+  error: null,
+
+  clearError: () => set({ error: null }),
 
   fetchWallets: async () => {
-    set({ isLoading: true });
+    set({ isLoading: true, error: null });
     try {
       const wallets = await apiGet<Wallet[]>('/wallets');
       const totalBalance = wallets.reduce((sum, w) => sum + (w.currentBalance ?? 0), 0);
       set({ wallets, totalBalance, isLoading: false });
-    } catch {
-      set({ isLoading: false });
+    } catch (err: any) {
+      const msg = err?.response?.data?.error ?? err?.message ?? 'Failed to load wallets';
+      set({ isLoading: false, error: msg });
     }
   },
 

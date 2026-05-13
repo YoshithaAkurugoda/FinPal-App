@@ -183,8 +183,12 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'auth-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      // Only persist non-sensitive display state. The access token is
+      // intentionally excluded — it is re-issued on every cold start via the
+      // refresh token (which lives in SecureStore / Keychain). Persisting
+      // the access token in unencrypted AsyncStorage would expose it in device
+      // backups and on rooted/jailbroken devices.
       partialize: (state) => ({
-        accessToken: state.accessToken,
         user: state.user,
         isAuthenticated: state.isAuthenticated,
       }),

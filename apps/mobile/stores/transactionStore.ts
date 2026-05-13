@@ -77,6 +77,7 @@ interface TransactionState {
   transactions: Transaction[];
   pending: Transaction[];
   isLoading: boolean;
+  error: string | null;
   filters: TransactionFilters;
   hasMore: boolean;
 
@@ -87,18 +88,22 @@ interface TransactionState {
   batchApprove: (ids: string[]) => Promise<void>;
   addManual: (data: AddManualData) => Promise<void>;
   setFilters: (filters: TransactionFilters) => void;
+  clearError: () => void;
 }
 
 export const useTransactionStore = create<TransactionState>()((set, get) => ({
   transactions: [],
   pending: [],
   isLoading: false,
+  error: null,
   filters: {},
   hasMore: true,
 
+  clearError: () => set({ error: null }),
+
   fetchTransactions: async (filters) => {
     const mergedFilters = { ...get().filters, ...filters };
-    set({ isLoading: true, filters: mergedFilters });
+    set({ isLoading: true, filters: mergedFilters, error: null });
     try {
       const data = await apiGet<ListResponse>('/transactions', mergedFilters as Record<string, unknown>);
       const items = (data.items ?? []).map((t) => mapTransaction(t as RawTx));
@@ -110,13 +115,14 @@ export const useTransactionStore = create<TransactionState>()((set, get) => ({
         hasMore: data.hasMore ?? false,
         isLoading: false,
       }));
-    } catch {
-      set({ isLoading: false });
+    } catch (err: any) {
+      const msg = err?.response?.data?.error ?? err?.message ?? 'Failed to load transactions';
+      set({ isLoading: false, error: msg });
     }
   },
 
   fetchPending: async () => {
-    set({ isLoading: true });
+    set({ isLoading: true, error: null });
     try {
       const data = await apiGet<ListResponse>('/transactions', {
         status: 'pending',
@@ -124,8 +130,9 @@ export const useTransactionStore = create<TransactionState>()((set, get) => ({
       });
       const items = (data.items ?? []).map((t) => mapTransaction(t as RawTx));
       set({ pending: items, isLoading: false });
-    } catch {
-      set({ isLoading: false });
+    } catch (err: any) {
+      const msg = err?.response?.data?.error ?? err?.message ?? 'Failed to load pending transactions';
+      set({ isLoading: false, error: msg });
     }
   },
 
