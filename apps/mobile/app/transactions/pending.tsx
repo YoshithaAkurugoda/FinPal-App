@@ -139,7 +139,9 @@ export default function PendingScreen() {
             try {
               await rejectTransaction(tx.id);
               await fetchPending();
-            } catch {
+              Alert.alert('Success', 'Transaction rejected');
+            } catch (err) {
+              console.error('Reject failed:', err);
               Alert.alert('Error', 'Failed to reject transaction. Please try again.');
             } finally {
               setActioningId(null);

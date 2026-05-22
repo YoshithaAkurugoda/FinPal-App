@@ -122,6 +122,8 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
           error: null,
         });
+        // Clear Zustand persisted state
+        await AsyncStorage.removeItem('auth-storage');
         router.replace('/(auth)/login');
       },
 

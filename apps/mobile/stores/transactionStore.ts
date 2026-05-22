@@ -152,13 +152,18 @@ export const useTransactionStore = create<TransactionState>()((set, get) => ({
   },
 
   rejectTransaction: async (id) => {
-    await apiPatch(`/transactions/${id}/reject`);
-    set((state) => ({
-      pending: state.pending.filter((t) => t.id !== id),
-      transactions: state.transactions.map((t) =>
-        t.id === id ? { ...t, status: 'rejected' as const } : t,
-      ),
-    }));
+    try {
+      await apiPatch(`/transactions/${id}/reject`);
+      set((state) => ({
+        pending: state.pending.filter((t) => t.id !== id),
+        transactions: state.transactions.map((t) =>
+          t.id === id ? { ...t, status: 'rejected' as const } : t,
+        ),
+      }));
+    } catch (error) {
+      console.error('Reject transaction error:', error);
+      throw error;
+    }
   },
 
   batchApprove: async (ids) => {
