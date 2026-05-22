@@ -26,14 +26,16 @@ interface RawBudget {
 function mapBudget(b: RawBudget): BudgetWithStatus {
   const limit = Number(b.amountLimit);
   const spent = Number(b.spent ?? 0);
+  const remaining = Number(b.remaining ?? Math.max(0, limit - spent));
+  const percentageValue = b.percentage ?? (limit > 0 ? (spent / limit) * 100 : 0);
   return {
     id: b.id,
     category: b.category,
     limit,
     spent,
-    remaining: Number(b.remaining ?? Math.max(0, limit - spent)),
+    remaining,
     period: b.period as 'monthly' | 'weekly',
-    progress: limit > 0 ? spent / limit : 0,
+    progress: percentageValue / 100,
     createdAt:
       typeof b.createdAt === 'string' ? b.createdAt : new Date(b.createdAt).toISOString(),
   };

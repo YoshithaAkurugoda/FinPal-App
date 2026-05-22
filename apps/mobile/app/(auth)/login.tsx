@@ -22,13 +22,19 @@ export default function LoginScreen() {
   const { login, isLoading, error, clearError } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   const handleLogin = () => {
-    setValidationError(null);
+    setValidationErrors({});
     const result = loginSchema.safeParse({ email: email.trim(), password });
     if (!result.success) {
-      setValidationError(result.error.errors[0]?.message ?? 'Invalid input');
+      const errors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        if (err.path[0]) {
+          errors[err.path[0] as string] = err.message;
+        }
+      });
+      setValidationErrors(errors);
       return;
     }
     login(result.data.email, result.data.password);
@@ -57,34 +63,44 @@ export default function LoginScreen() {
           <Text style={styles.subtitle}>Access your luminescent financial intelligence.</Text>
 
           {/* Error */}
-          {(error || validationError) && (
-            <TouchableOpacity onPress={() => { clearError(); setValidationError(null); }}>
+          {error && (
+            <TouchableOpacity onPress={() => { clearError(); }}>
               <View style={styles.errorBanner}>
                 <Ionicons name="alert-circle-outline" size={16} color={theme.colors.danger} />
-                <Text style={styles.errorText}>{validationError ?? error}</Text>
+                <Text style={styles.errorText}>{error}</Text>
               </View>
             </TouchableOpacity>
           )}
 
           {/* Form */}
           <View style={styles.form}>
-            <Input
-              label="Email Address"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="name@company.com"
-              keyboardType="email-address"
-              leftIcon={<Ionicons name="mail-outline" size={16} color={theme.colors.textSecondary} />}
-            />
+            <View>
+              <Input
+                label="Email Address"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="name@company.com"
+                keyboardType="email-address"
+                leftIcon={<Ionicons name="mail-outline" size={16} color={theme.colors.textSecondary} />}
+              />
+              {validationErrors.email && (
+                <Text style={styles.fieldError}>{validationErrors.email}</Text>
+              )}
+            </View>
 
-            <Input
-              label="Password"
-              value={password}
-              onChangeText={setPassword}
-              placeholder="••••••••"
-              secureTextEntry
-              leftIcon={<Ionicons name="lock-closed-outline" size={16} color={theme.colors.textSecondary} />}
-            />
+            <View>
+              <Input
+                label="Password"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="••••••••"
+                secureTextEntry
+                leftIcon={<Ionicons name="lock-closed-outline" size={16} color={theme.colors.textSecondary} />}
+              />
+              {validationErrors.password && (
+                <Text style={styles.fieldError}>{validationErrors.password}</Text>
+              )}
+            </View>
 
             <Button
               title="Sign In"
@@ -174,6 +190,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.danger + '30',
   },
   errorText: { color: theme.colors.danger, fontSize: theme.fontSize.sm, flex: 1 },
+  fieldError: { color: theme.colors.danger, fontSize: theme.fontSize.xs, marginTop: 4, marginLeft: 4 },
   form: { width: '100%' },
   button: { marginTop: theme.spacing.sm },
   footer: { alignItems: 'center', marginTop: theme.spacing.lg, marginBottom: theme.spacing.xl },

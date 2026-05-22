@@ -32,19 +32,31 @@ export default function GoalDetailScreen() {
 
   const [showContribute, setShowContribute] = useState(false);
   const [amount, setAmount] = useState('');
+  const [selectedWalletId, setSelectedWalletId] = useState<string | null>(null);
   const [contributing, setContributing] = useState(false);
 
   useEffect(() => {
     fetchWallets();
   }, []);
 
+  useEffect(() => {
+    if (wallets.length > 0 && !selectedWalletId) {
+      setSelectedWalletId(wallets[0].id);
+    }
+  }, [wallets, selectedWalletId]);
+
   const handleContribute = async () => {
-    if (!goal || !amount || !wallets[0]) return;
+    if (!goal || !amount || !selectedWalletId) return;
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      Alert.alert('Invalid Amount', 'Please enter a valid positive amount.');
+      return;
+    }
     setContributing(true);
     try {
       await contribute(goal.id, {
-        amount: Number(amount),
-        walletId: wallets[0].id,
+        amount: parsedAmount,
+        walletId: selectedWalletId,
       });
       setShowContribute(false);
       setAmount('');
@@ -161,9 +173,31 @@ export default function GoalDetailScreen() {
               keyboardType="numeric"
             />
             {wallets.length > 0 && (
-              <Text style={styles.walletNote}>
-                From: {wallets[0].name}
-              </Text>
+              <>
+                <Text style={styles.walletLabel}>From Wallet</Text>
+                <View style={styles.walletList}>
+                  {wallets.map((wallet) => (
+                    <TouchableOpacity
+                      key={wallet.id}
+                      style={[
+                        styles.walletOption,
+                        selectedWalletId === wallet.id && styles.walletOptionSelected,
+                      ]}
+                      onPress={() => setSelectedWalletId(wallet.id)}
+                    >
+                      <View style={styles.walletOptionContent}>
+                        <Text style={styles.walletOptionName}>{wallet.name}</Text>
+                        <Text style={styles.walletOptionBalance}>
+                          {formatAmount(wallet.balance, currency)}
+                        </Text>
+                      </View>
+                      {selectedWalletId === wallet.id && (
+                        <Ionicons name="checkmark-circle" size={20} color={theme.colors.primary} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
             )}
             <View style={styles.modalActions}>
               <Button
@@ -260,10 +294,43 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     marginBottom: theme.spacing.lg,
   },
-  walletNote: {
+  walletLabel: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.fontSize.sm,
+    fontWeight: '500',
+    marginBottom: theme.spacing.sm,
+  },
+  walletList: {
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.lg,
+  },
+  walletOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.surfaceLight,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.surface,
+  },
+  walletOptionSelected: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primary + '10',
+  },
+  walletOptionContent: {
+    flex: 1,
+  },
+  walletOptionName: {
+    color: theme.colors.text,
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  walletOptionBalance: {
     color: theme.colors.textSecondary,
     fontSize: theme.fontSize.xs,
-    marginBottom: theme.spacing.md,
   },
   modalActions: {
     flexDirection: 'row',
