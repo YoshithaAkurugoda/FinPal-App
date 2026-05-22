@@ -14,17 +14,11 @@ export const env = {
   get DATABASE_URL() {
     return required('DATABASE_URL');
   },
-  get REDIS_URL() {
-    const raw = process.env.REDIS_URL?.trim();
-    if (!raw) {
-      return optional('REDIS_URL', 'redis://localhost:6379');
-    }
-    if (raw.startsWith('http://') || raw.startsWith('https://')) {
-      throw new Error(
-        'REDIS_URL must be the Redis/TLS URL from Upstash (starts with rediss://), not the REST https URL. Open Upstash → your database → Connect → copy the redis-cli URL.',
-      );
-    }
-    return raw;
+  get UPSTASH_REDIS_REST_URL() {
+    return optional('UPSTASH_REDIS_REST_URL', 'http://localhost:6379');
+  },
+  get UPSTASH_REDIS_REST_TOKEN() {
+    return optional('UPSTASH_REDIS_REST_TOKEN', '');
   },
   get JWT_ACCESS_SECRET() {
     return required('JWT_ACCESS_SECRET');
@@ -64,5 +58,9 @@ export const env = {
   },
   get NODE_ENV() {
     return optional('NODE_ENV', 'development');
+  },
+  get ALLOWED_ORIGINS() {
+    const raw = optional('ALLOWED_ORIGINS', '');
+    return raw ? raw.split(',').map((o) => o.trim()) : [];
   },
 } as const;
