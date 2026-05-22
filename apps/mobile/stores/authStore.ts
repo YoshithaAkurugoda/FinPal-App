@@ -36,7 +36,7 @@ interface AuthState {
 
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshTokens: () => Promise<void>;
   updateProfile: (data: Partial<Pick<User, 'name' | 'monthlyIncome' | 'currency'>>) => Promise<void>;
   initialize: () => Promise<void>;
@@ -113,8 +113,8 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      logout: () => {
-        void deleteRefreshToken();
+      logout: async () => {
+        await deleteRefreshToken();
         set({
           accessToken: null,
           refreshToken: null,
@@ -122,6 +122,8 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
           error: null,
         });
+        // Clear Zustand persisted state
+        await AsyncStorage.removeItem('auth-storage');
         router.replace('/(auth)/login');
       },
 

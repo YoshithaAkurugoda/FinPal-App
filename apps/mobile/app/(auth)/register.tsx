@@ -29,10 +29,10 @@ export default function RegisterScreen() {
   const [monthlyIncome, setMonthlyIncome] = useState('');
   const [currency, setCurrency] = useState('LKR');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   const handleRegister = () => {
-    setValidationError(null);
+    setValidationErrors({});
     if (!agreedToTerms) {
       Alert.alert('Terms Required', 'Please agree to the Terms of Service to continue.');
       return;
@@ -45,7 +45,13 @@ export default function RegisterScreen() {
       currency,
     });
     if (!result.success) {
-      setValidationError(result.error.errors[0]?.message ?? 'Invalid input');
+      const errors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        if (err.path[0]) {
+          errors[err.path[0] as string] = err.message;
+        }
+      });
+      setValidationErrors(errors);
       return;
     }
     register(result.data);
@@ -76,50 +82,70 @@ export default function RegisterScreen() {
           </Text>
 
           {/* Error */}
-          {(error || validationError) && (
-            <TouchableOpacity onPress={() => { clearError(); setValidationError(null); }}>
+          {error && (
+            <TouchableOpacity onPress={() => { clearError(); }}>
               <View style={styles.errorBanner}>
                 <Ionicons name="alert-circle-outline" size={16} color={theme.colors.danger} />
-                <Text style={styles.errorText}>{validationError ?? error}</Text>
+                <Text style={styles.errorText}>{error}</Text>
               </View>
             </TouchableOpacity>
           )}
 
           {/* Form */}
-          <Input
-            label="Full Name"
-            value={name}
-            onChangeText={setName}
-            placeholder="Cameron Williamson"
-            leftIcon={<Ionicons name="person-outline" size={16} color={theme.colors.textSecondary} />}
-          />
+          <View>
+            <Input
+              label="Full Name"
+              value={name}
+              onChangeText={setName}
+              placeholder="Cameron Williamson"
+              leftIcon={<Ionicons name="person-outline" size={16} color={theme.colors.textSecondary} />}
+            />
+            {validationErrors.name && (
+              <Text style={styles.fieldError}>{validationErrors.name}</Text>
+            )}
+          </View>
 
-          <Input
-            label="Email Address"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="cameron@example.com"
-            keyboardType="email-address"
-            leftIcon={<Ionicons name="mail-outline" size={16} color={theme.colors.textSecondary} />}
-          />
+          <View>
+            <Input
+              label="Email Address"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="cameron@example.com"
+              keyboardType="email-address"
+              leftIcon={<Ionicons name="mail-outline" size={16} color={theme.colors.textSecondary} />}
+            />
+            {validationErrors.email && (
+              <Text style={styles.fieldError}>{validationErrors.email}</Text>
+            )}
+          </View>
 
-          <Input
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            placeholder="••••••••••••"
-            secureTextEntry
-            leftIcon={<Ionicons name="lock-closed-outline" size={16} color={theme.colors.textSecondary} />}
-          />
+          <View>
+            <Input
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              placeholder="••••••••••••"
+              secureTextEntry
+              leftIcon={<Ionicons name="lock-closed-outline" size={16} color={theme.colors.textSecondary} />}
+            />
+            {validationErrors.password && (
+              <Text style={styles.fieldError}>{validationErrors.password}</Text>
+            )}
+          </View>
 
-          <Input
-            label="Monthly Income (optional)"
-            value={monthlyIncome}
-            onChangeText={setMonthlyIncome}
-            placeholder="e.g. 5000"
-            keyboardType="numeric"
-            leftIcon={<Ionicons name="cash-outline" size={16} color={theme.colors.textSecondary} />}
-          />
+          <View>
+            <Input
+              label="Monthly Income (optional)"
+              value={monthlyIncome}
+              onChangeText={setMonthlyIncome}
+              placeholder="e.g. 5000"
+              keyboardType="numeric"
+              leftIcon={<Ionicons name="cash-outline" size={16} color={theme.colors.textSecondary} />}
+            />
+            {validationErrors.monthlyIncome && (
+              <Text style={styles.fieldError}>{validationErrors.monthlyIncome}</Text>
+            )}
+          </View>
 
           <Text style={styles.sectionLabel}>Currency</Text>
           <View style={styles.currencyRow}>
@@ -222,6 +248,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.danger + '30',
   },
   errorText: { color: theme.colors.danger, fontSize: theme.fontSize.sm, flex: 1 },
+  fieldError: { color: theme.colors.danger, fontSize: theme.fontSize.xs, marginTop: 4, marginLeft: 4 },
   sectionLabel: {
     color: theme.colors.textSecondary,
     fontSize: theme.fontSize.xs,

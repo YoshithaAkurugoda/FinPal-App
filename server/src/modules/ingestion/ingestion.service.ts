@@ -1,8 +1,8 @@
-import pdf from 'pdf-parse';
 import { createHash } from 'node:crypto';
 
 import { prisma } from '../../lib/prisma.js';
 import { smsParseQueue, statementParseQueue } from '../../config/queue.js';
+import { extractTextFromPdf } from '../../lib/pdf-extractor.js';
 
 const MAX_STATEMENT_TEXT = 500_000;
 
@@ -54,15 +54,15 @@ export async function submitStatement(
 
   let text: string;
   try {
-    const parsed = await pdf(file.buffer);
-    text = (parsed.text ?? '').trim();
-  } catch {
-    throw Object.assign(new Error('Could not read PDF file'), { statusCode: 400 });
+    text = await extractTextFromPdf(file.buffer);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Unknown error';
+    throw Object.assign(new Error(`Failed to read PDF: ${msg}`), { statusCode: 400 });
   }
 
-  if (!text) {
+  if (!text || text.length < 10) {
     throw Object.assign(
-      new Error('No text found in PDF — try a text-based statement, not a scanned image'),
+      new Error('No readable text found in PDF. Ensure the PDF contains transaction data.'),
       { statusCode: 400 },
     );
   }

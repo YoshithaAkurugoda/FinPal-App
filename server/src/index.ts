@@ -24,24 +24,24 @@ const app = express();
 app.use(helmet());
 
 const allowedOrigins = env.ALLOWED_ORIGINS;
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow non-browser clients (no Origin header) and configured origins.
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.length === 0) {
-        // Dev fallback: permit localhost only when no allowlist is configured.
-        if (env.NODE_ENV !== 'production' && /^http:\/\/localhost(:\d+)?$/.test(origin)) {
-          return callback(null, true);
-        }
-        return callback(new Error('CORS: no ALLOWED_ORIGINS configured'));
+const corsOptions =
+  env.NODE_ENV === 'production'
+    ? {
+        origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+          if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+          } else {
+            callback(null, false);
+          }
+        },
+        credentials: true,
       }
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error(`CORS: origin ${origin} not allowed`));
-    },
-    credentials: true,
-  }),
-);
+    : {
+        origin: true,
+        credentials: true,
+      };
+
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 
 const limiter = rateLimit({
@@ -84,6 +84,11 @@ app.use((_req: Request, res: Response) => {
 });
 
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+  // Skip logging for CORS errors on OPTIONS requests (expected behavior)
+  if (req.method === 'OPTIONS') {
+    return res.status(403).json({ success: false, error: 'CORS error' });
+  }
+
   // Log only structured, non-sensitive fields. Avoid dumping the full error
   // object (which can include user payload, SQL fragments, or stack frames).
   const errAny = err as Error & { code?: string; statusCode?: number };
